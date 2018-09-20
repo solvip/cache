@@ -1,6 +1,7 @@
 package lru
 
 import (
+	"math/rand"
 	"strconv"
 	"testing"
 )
@@ -95,5 +96,98 @@ func assert_cache_entry_exists(t *testing.T, c *LRU, key string, expectedValue i
 func assert_cache_entry_absent(t *testing.T, c *LRU, key string) {
 	if value, ok := c.Get(key); ok {
 		t.Fatalf("Expected c.Get(%s) = _, false; instead got %v, %v", key, value, ok)
+	}
+}
+
+// BenchmarkPutAllMisses - Benchmark the case where all puts result in evictions
+func BenchmarkPutAllMisses(b *testing.B) {
+	c := New(5000)
+
+	for i := 0; i < b.N; i++ {
+		c.Put(strconv.Itoa(i), i)
+	}
+}
+
+// BenchmarkPutAllHits - Benchmark the case where all puts result in a hit and an update of all existing items
+func BenchmarkPutAllHits(b *testing.B) {
+	c := New(5000)
+
+	keys := make([]string, 5000)
+	for i := range keys {
+		keys[i] = strconv.Itoa(i)
+	}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		k := keys[rand.Intn(len(keys))]
+		c.Put(k, i)
+	}
+}
+
+// BenchmarkPut50PercentHitRate - Benchmark the case where puts result in a hit in roughly 50% hit rate
+func BenchmarkPut50PercentHitRate(b *testing.B) {
+	c := New(5000)
+
+	keys := make([]string, 10000)
+	for i := range keys {
+		keys[i] = strconv.Itoa(i)
+	}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		k := keys[rand.Intn(len(keys))]
+		c.Put(k, i)
+	}
+}
+
+// BenchmarkGetAllMisses - Benchmark the case where all gets result in a miss
+func BenchmarkGetAllMisses(b *testing.B) {
+	c := New(5000)
+
+	for i := 0; i < 5000; i++ {
+		c.Put(strconv.Itoa(i), i)
+	}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		if _, ok := c.Get("non_existant"); ok {
+			b.Fatalf("Should've missed")
+		}
+	}
+}
+
+// BenchmarkGetAllHits - Benchmark the case where all gets result in a hit
+func BenchmarkGetAllHits(b *testing.B) {
+	c := New(5000)
+
+	keys := make([]string, 5000)
+	for i := 0; i < 5000; i++ {
+		keys[i] = strconv.Itoa(i)
+		c.Put(keys[i], i)
+	}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		k := keys[rand.Intn(len(keys))]
+		if _, ok := c.Get(k); !ok {
+			b.Fatalf("Should've hit for %v", k)
+		}
+	}
+}
+
+// BenchmarkGet50PercentHits - Benchmark the case where we get ~50% hit rate on Gets
+func BenchmarkGet50PercentHits(b *testing.B) {
+	c := New(5000)
+
+	keys := make([]string, 10000)
+	for i := range keys {
+		keys[i] = strconv.Itoa(i)
+		c.Put(keys[i], i)
+	}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		k := keys[rand.Intn(len(keys))]
+		c.Get(k)
 	}
 }

@@ -53,14 +53,20 @@ func (lru *LRU) Put(key string, value interface{}) {
 	}
 
 	// If we're at capacity, we need to evict the LRU item
+	// We reuse the evicted node as the new head node if possible
 	if len(lru.m) == lru.capacity {
-		evicted := lru.cache.dropTail()
-		delete(lru.m, evicted.key)
+		n = lru.cache.dropTail()
+		delete(lru.m, n.key)
 		lru.evictions++
+	} else {
+		n = &node{}
 	}
 
-	n = &node{key: key, value: value}
+	n.key = key
+	n.value = value
+
 	lru.m[key] = n
+
 	lru.cache.moveToHead(n)
 
 	return
