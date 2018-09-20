@@ -1,7 +1,6 @@
 package lru
 
 import (
-	"math/rand"
 	"strconv"
 	"testing"
 )
