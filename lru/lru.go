@@ -2,8 +2,12 @@ package lru
 
 // LRU implements a least-recently-used cache
 type LRU struct {
-	capacity int
+	// freeNodes initially represents our backing array of cache nodes,
+	// which we allocate at startup
+	freeNodes []node
 
+	// m maps a cache key to the node responsible
+	// for the value associated with key
 	m map[string]*node
 
 	// The most recently used item is always at the head of the list
@@ -18,8 +22,8 @@ type LRU struct {
 // New - allocate a new LRU cache having capacity for `capacity` items.
 func New(capacity int) *LRU {
 	return &LRU{
-		capacity: capacity,
-		m:        make(map[string]*node),
+		freeNodes: make([]node, capacity),
+		m:         make(map[string]*node),
 	}
 }
 
@@ -54,12 +58,14 @@ func (lru *LRU) Put(key string, value interface{}) {
 
 	// If we're at capacity, we need to evict the LRU item
 	// We reuse the evicted node as the new head node if possible
-	if len(lru.m) == lru.capacity {
+	// If we're not at capacity; we pick a free node instead
+	if len(lru.freeNodes) == 0 {
 		n = lru.cache.dropTail()
 		delete(lru.m, n.key)
 		lru.evictions++
 	} else {
-		n = &node{}
+		n = &lru.freeNodes[0]
+		lru.freeNodes = lru.freeNodes[1:]
 	}
 
 	n.key = key
