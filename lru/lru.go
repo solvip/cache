@@ -27,11 +27,11 @@ func (lru *LRU) Statistics() (hits, misses, evictions int) {
 	return lru.hits, lru.misses, lru.evictions
 }
 
-func (lru *LRU) Get(key string) (int, bool) {
+func (lru *LRU) Get(key string) (interface{}, bool) {
 	node := lru.m[key]
 	if node == nil {
 		lru.misses++
-		return 0, false
+		return nil, false
 	}
 
 	lru.cache.moveToHead(node)
@@ -40,9 +40,10 @@ func (lru *LRU) Get(key string) (int, bool) {
 	return node.value, true
 }
 
-func (lru *LRU) Put(key string, value int) {
-	n := lru.m[key]
-	if n != nil {
+func (lru *LRU) Put(key string, value interface{}) {
+	var n *node
+
+	if n = lru.m[key]; n != nil {
 		// The node is already in the cache.
 		// We simply need to update it's value and move it to the head
 		n.value = value

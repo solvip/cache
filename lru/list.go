@@ -7,7 +7,7 @@ type list struct {
 
 type node struct {
 	key   string
-	value int
+	value interface{}
 
 	next *node
 	prev *node
