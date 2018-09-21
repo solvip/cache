@@ -62,8 +62,7 @@ func (lru *LRU) Put(key string, value interface{}) {
 		return
 	}
 
-	// We're still not at capacity; allocate a new node at the head
-	// and continue
+	// We're still not at capacity; allocate a new element at the head
 	if len(lru.m) < lru.capacity {
 		elem = lru.l.PushFront(&entry{key: key, value: value})
 		lru.m[key] = elem
