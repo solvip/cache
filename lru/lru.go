@@ -1,18 +1,26 @@
 package lru
 
+import (
+	"container/list"
+)
+
+type entry struct {
+	key   string
+	value interface{}
+}
+
 // LRU implements a least-recently-used cache
 type LRU struct {
-	// freeNodes initially represents our backing array of cache nodes,
-	// which we allocate at startup
-	freeNodes []node
+	capacity int
 
 	// m maps a cache key to the node responsible
 	// for the value associated with key
-	m map[string]*node
+	m map[string]*list.Element
 
 	// The most recently used item is always at the head of the list
 	// and the tail contains the item to evict
-	cache list
+	// cache list
+	l list.List
 
 	hits      int
 	misses    int
@@ -21,10 +29,18 @@ type LRU struct {
 
 // New - allocate a new LRU cache having capacity for `capacity` items.
 func New(capacity int) *LRU {
-	return &LRU{
-		freeNodes: make([]node, capacity),
-		m:         make(map[string]*node),
+	lru := &LRU{
+		capacity: capacity,
+		m:        make(map[string]*list.Element),
 	}
+
+	// // Preallocate the cache list
+	// entries := make([]entry, capacity)
+	// for i := 0; i < capacity; i++ {
+	// 	lru.l.PushFront(&entries[i])
+	// }
+
+	return lru
 }
 
 func (lru *LRU) Statistics() (hits, misses, evictions int) {
@@ -32,48 +48,45 @@ func (lru *LRU) Statistics() (hits, misses, evictions int) {
 }
 
 func (lru *LRU) Get(key string) (interface{}, bool) {
-	node := lru.m[key]
-	if node == nil {
+	elem := lru.m[key]
+	if elem == nil {
 		lru.misses++
 		return nil, false
 	}
 
-	lru.cache.moveToHead(node)
+	lru.l.MoveToFront(elem)
 	lru.hits++
 
-	return node.value, true
+	return elem.Value.(*entry).value, true
 }
 
 func (lru *LRU) Put(key string, value interface{}) {
-	var n *node
-
-	if n = lru.m[key]; n != nil {
-		// The node is already in the cache.
-		// We simply need to update it's value and move it to the head
-		n.value = value
-		lru.cache.moveToHead(n)
+	elem := lru.m[key]
+	if elem != nil {
+		// The entry is already in the cache.
+		lru.l.MoveToFront(elem)
+		elem.Value.(*entry).value = value
 
 		return
 	}
 
-	// If we're at capacity, we need to evict the LRU item
-	// We reuse the evicted node as the new head node if possible
-	// If we're not at capacity; we pick a free node instead
-	if len(lru.freeNodes) == 0 {
-		n = lru.cache.dropTail()
-		delete(lru.m, n.key)
-		lru.evictions++
-	} else {
-		n = &lru.freeNodes[0]
-		lru.freeNodes = lru.freeNodes[1:]
+	// We're still not at capacity; allocate a new node at the head
+	// and continue
+	if len(lru.m) < lru.capacity {
+		elem = lru.l.PushFront(&entry{key: key, value: value})
+		lru.m[key] = elem
+		return
 	}
 
-	n.key = key
-	n.value = value
+	lru.evictions++
+	elem = lru.l.Back()
+	lru.l.MoveToFront(elem)
 
-	lru.m[key] = n
+	delete(lru.m, elem.Value.(*entry).key) // delete old key
+	lru.m[key] = elem
 
-	lru.cache.moveToHead(n)
+	elem.Value.(*entry).key = key
+	elem.Value.(*entry).value = value
 
 	return
 }
