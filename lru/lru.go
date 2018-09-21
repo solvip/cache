@@ -29,18 +29,10 @@ type LRU struct {
 
 // New - allocate a new LRU cache having capacity for `capacity` items.
 func New(capacity int) *LRU {
-	lru := &LRU{
+	return &LRU{
 		capacity: capacity,
 		m:        make(map[string]*list.Element),
 	}
-
-	// // Preallocate the cache list
-	// entries := make([]entry, capacity)
-	// for i := 0; i < capacity; i++ {
-	// 	lru.l.PushFront(&entries[i])
-	// }
-
-	return lru
 }
 
 func (lru *LRU) Statistics() (hits, misses, evictions int) {
